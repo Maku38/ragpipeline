@@ -1,0 +1,54 @@
+[dotenv@17.3.1] injecting env (4) from .env -- tip: 🤖 agentic secret storage: https://dotenvx.com/as2
+✅ Groq client initialized successfully
+🔑 API Key loaded: Yes (length: 22)
+🚀 Server running on http://localhost:5000
+📡 Backend ready to accept /api/chat requests
+🔗 Groq API: Connected and ready
+📊 Supabase: Connected and ready
+👤 [SSE] Client connected. Total: 1
+✅ Fetched 39 rooms from Supabase
+👤 [SSE] Client connected. Total: 2
+✅ Fetched 39 rooms from Supabase
+✅ Fetched 39 rooms from Supabase
+📨 Received /api/chat request: { message: 'hii', role: 'student' }
+✅ GROQ_API_KEY present: true
+✅ Groq client initialized: true
+🤖 Calling Groq API (extraction)...
+❌ Backend Error in /api/chat: AuthenticationError: 401 {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+    at APIError.generate (/home/mayank-joshi/Documents/ragpipeline/csis-backend/node_modules/groq-sdk/error.js:43:20)
+    at Groq.makeStatusError (/home/mayank-joshi/Documents/ragpipeline/csis-backend/node_modules/groq-sdk/core.js:275:33)
+    at Groq.makeRequest (/home/mayank-joshi/Documents/ragpipeline/csis-backend/node_modules/groq-sdk/core.js:318:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async /home/mayank-joshi/Documents/ragpipeline/csis-backend/server.js:184:24 {
+  status: 401,
+  headers: {
+    'alt-svc': 'h3=":443"; ma=86400',
+    'cache-control': 'private, max-age=0, no-store, no-cache, must-revalidate',
+    'cf-cache-status': 'DYNAMIC',
+    'cf-ray': '9d53bbc52ae18730-BOM',
+    connection: 'keep-alive',
+    'content-length': '96',
+    'content-type': 'application/json',
+    date: 'Sat, 28 Feb 2026 23:34:35 GMT',
+    server: 'cloudflare',
+    'set-cookie': '__cf_bm=w7z.xAEawasxplHKgeBCRYn4aK7yjyLeq0wxkRy_egA-1772321675.0659308-1.0.1.1-ZLG78GltnmOfQsJduNVHBzpprKuxHHVX1TkM63jUDFOJcNU7ikw3T4DI6xdwES.pSptKAKJbLHUQB4VfmaMAr_M94URKw9oumvZwakelmAGSsAVgrLbL9ftP6bqNezZ6; HttpOnly; Secure; Path=/; Domain=groq.com; Expires=Sun, 01 Mar 2026 00:04:35 GMT',
+    'strict-transport-security': 'max-age=15552000',
+    vary: 'Origin',
+    via: '1.1 google',
+    'x-groq-region': 'bom',
+    'x-request-id': 'req_01kjk9n5v0e5qt32sn4810rsfk'
+  },
+  error: {
+    error: {
+      message: 'Invalid API Key',
+      type: 'invalid_request_error',
+      code: 'invalid_api_key'
+    }
+  }
+}
+Error details: {
+  message: '401 {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}',
+  code: undefined,
+  status: 401,
+  type: undefined
+}
