@@ -80,20 +80,40 @@ app.get("/api/rooms", async (req, res) => {
 // GET /api/schedule  — grouped by date for the calendar view
 // ─────────────────────────────────────────────────────────────────────────────
 app.get("/api/schedule", async (req, res) => {
-  const { data: bookings, error } = await supabase
-    .from("bookings")
-    .select("room_number, start_date, start_time, end_time, status")
-    .neq("status", "Rejected");
+  try {
+    // 1. Fetch valid room names first
+    const { data: rooms, error: roomsError } = await supabase
+      .from("rooms")
+      .select("name");
+    
+    if (roomsError) throw roomsError;
+    const validRoomNames = new Set((rooms || []).map(r => r.name.trim().toUpperCase()));
 
-  if (error) return res.status(500).json({ error: error.message });
+    // 2. Fetch all non-rejected bookings
+    const { data: bookings, error: bookingsError } = await supabase
+      .from("bookings")
+      .select("room_number, start_date, start_time, end_time, status")
+      .neq("status", "Rejected");
 
-  const scheduleMap = {};
-  bookings.forEach((b) => {
-    if (!scheduleMap[b.start_date]) scheduleMap[b.start_date] = [];
-    scheduleMap[b.start_date].push(b);
-  });
+    if (bookingsError) throw bookingsError;
 
-  res.json(scheduleMap);
+    // 3. Filter schedule to ONLY show bookings for rooms that actually exist!
+    // This prevents "ghost" bookings (like A-504) from showing in the timeline.
+    const filteredBookings = (bookings || []).filter(b => 
+      validRoomNames.has((b.room_number || "").trim().toUpperCase())
+    );
+
+    const scheduleMap = {};
+    filteredBookings.forEach((b) => {
+      if (!scheduleMap[b.start_date]) scheduleMap[b.start_date] = [];
+      scheduleMap[b.start_date].push(b);
+    });
+
+    res.json(scheduleMap);
+  } catch (err) {
+    console.error("❌ Schedule fetch error:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -271,10 +291,17 @@ app.post("/api/chat", async (req, res) => {
     console.log("✅ GROQ_API_KEY present:", !!process.env.GROQ_API_KEY);
     console.log("✅ Groq client initialized:", !!groqClient);
 
-    const today = new Date().toISOString().split("T")[0];
+    const getLocalDateStr = (d) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const today = getLocalDateStr(new Date());
     const semEnd = new Date();
     semEnd.setMonth(new Date().getMonth() + 5);
-    const semEndStr = semEnd.toISOString().split("T")[0];
+    const semEndStr = getLocalDateStr(semEnd);
 
     console.log("🤖 Calling Groq API (extraction)...");
     const completion = await groqClient.chat.completions.create({
@@ -299,7 +326,7 @@ If the message is a booking request, output ONLY valid JSON in this exact format
 If it is NOT a booking request (e.g. a question, cancellation, or chitchat), output:
 { "is_booking_request": false, "bookings": [] }
 RULES:
-- "tomorrow" = ${new Date(Date.now() + 86400000).toISOString().split("T")[0]}
+- "tomorrow" = ${getLocalDateStr(new Date(Date.now() + 86400000))}
 - "next Monday" etc — calculate from today (${today})
 - Use 24-hour time format (e.g. "08:00", "13:30")
 - Output ONLY JSON. No explanation. No markdown.`,
@@ -424,6 +451,7 @@ POLICIES:
 1. SEMESTER LIMIT: Only book between ${today} and ${semEndStr}. Reject dates outside this window.
 2. ROLE RULES: Students → Pending status (CSA must approve). Teachers → Approved instantly. Admin → Full override.
 3. CONFLICT RULE: NEVER book a room that has an overlapping approved or pending booking. The hardcoded check above is final.
+4. ROOM VALIDITY: ONLY book rooms explicitly listed in "AVAILABLE RESOURCES". If the user asks for a room not in that list, refuse and list the available ones.
 
 OUTPUT FORMAT (strict JSON):
 {

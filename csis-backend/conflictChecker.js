@@ -55,7 +55,9 @@ async function checkBookingConflict(supabase, proposed) {
   }
 
   // Must not book in the past
-  const today = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  
   if (start_date < today) {
     result.valid = false;
     result.reasons.push(`Cannot book in the past. Requested date: ${start_date}, today is ${today}.`);
@@ -79,7 +81,22 @@ async function checkBookingConflict(supabase, proposed) {
     return result;
   }
 
-  // ── 2. Live DB conflict check (hardcoded query + overlap math) ─────────────
+  // ── 2. Room Existence Check ──────────────────────────────────────────────
+  
+  // Fetch room availability to make sure it exists
+  const { data: roomData, error: roomError } = await supabase
+    .from('rooms')
+    .select('name')
+    .ilike('name', room_number)
+    .single();
+
+  if (roomError || !roomData) {
+    result.valid = false;
+    result.reasons.push(`Room "${room_number}" does not exist in the database. Please select an available room.`);
+    return result;
+  }
+
+  // ── 3. Live DB conflict check (hardcoded query + overlap math) ─────────────
 
   // Fetch all non-rejected bookings for this room on this date
   const { data: existing, error } = await supabase
