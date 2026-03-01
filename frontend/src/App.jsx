@@ -207,8 +207,8 @@ export default function App() {
         { role: "assistant", content: parsed.assistant_message },
       ]);
 
-      // After a BOOK or CANCEL, nudge the realtime hook to sync fresh data
-      if (parsed.intent === "BOOK" || parsed.intent === "CANCEL") {
+      // After a BOOK, CANCEL, or CLEAR, nudge the realtime hook to sync fresh data
+      if (parsed.intent === "BOOK" || parsed.intent === "CANCEL" || parsed.intent === "CLEAR") {
         triggerRefresh();
       }
     } catch (err) {
@@ -287,6 +287,25 @@ export default function App() {
                 CSIS <span>RAG</span> Pipeline
               </div>
             </div>
+            
+            {/* Admin Action Bar: Direct access to student requests in chat view */}
+            {role === "admin" && bookings.some(b => b.owner_role === "student" && (b.status === "Pending" || b.status?.toUpperCase() === "PENDING")) && (
+              <div className="admin-action-bar">
+                <div className="action-bar-label">Pending Student Requests:</div>
+                <div className="action-items">
+                  {bookings.filter(b => b.owner_role === "student" && (b.status === "Pending" || b.status?.toUpperCase() === "PENDING")).map(bk => (
+                    <div key={bk.booking_id} className="action-item" style={{ animation: 'msgIn 0.3s ease' }}>
+                      <span>{bk.booking_id} · {bk.room_number}</span>
+                      <div className="action-btns">
+                        <button onClick={() => approveBooking(bk.booking_id)} title="Approve Request">✓</button>
+                        <button onClick={() => rejectBooking(bk.booking_id)} title="Reject Request">✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             <div className="messages">
               {messages.map((m, i) => (
@@ -956,7 +975,6 @@ export default function App() {
                                   padding: "6px 4px",
                                   borderRadius: "4px",
                                   fontSize: "9px",
-                                  fontWeight: "600",
                                   textAlign: "center",
                                   fontFamily: "var(--font-mono)",
                                   background: booked

@@ -42,7 +42,7 @@ async function getSystemContext() {
     const type = r.type ?? '';
     const capacity = r.capacity ?? '';
     const features = Array.isArray(r.features) ? r.features.join(', ') : (r.features ? String(r.features) : '');
-    return `- ${roomId} ${name ? `(${name})` : ''}: ${type}${capacity ? `, Seats: ${capacity}` : ''}${features ? `, Features: ${features}` : ''}`;
+    return `📍 VALID ROOM ID: "${roomId}" ${name ? `(Display Name: ${name})` : ''} | Type: ${type}${capacity ? `, Seats: ${capacity}` : ''}${features ? `, Features: ${features}` : ''}`;
   }).join('\n');
 
   const bookingsStr = (bookings || []).map(b => {

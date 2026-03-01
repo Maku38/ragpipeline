@@ -83,26 +83,43 @@ async function checkBookingConflict(supabase, proposed) {
 
   // ── 2. Room Existence Check ──────────────────────────────────────────────
   
-  // Fetch room availability to make sure it exists
-  const { data: roomData, error: roomError } = await supabase
-    .from('rooms')
-    .select('name')
-    .ilike('name', room_number)
-    .single();
+  // Normalize the search term: remove "ROOM", hyphens, spaces, and make uppercase
+  const searchNormalized = room_number.toString().toUpperCase().replace(/^ROOM\s+/i, '').replace(/[^A-Z0-9]/g, '');
 
-  if (roomError || !roomData) {
+  // Fetch all rooms to perform a local normalized comparison (safest for inconsistent formats)
+  const { data: allRooms, error: roomError } = await supabase
+    .from('rooms')
+    .select('room_id, name');
+
+  if (roomError || !allRooms) {
     result.valid = false;
-    result.reasons.push(`Room "${room_number}" does not exist in the database. Please select an available room.`);
+    result.reasons.push(`Could not verify room existence due to a database error.`);
     return result;
   }
 
-  // ── 3. Live DB conflict check (hardcoded query + overlap math) ─────────────
+  // Find a match by normalizing both ID and Name
+  const foundRoom = allRooms.find(r => {
+    const idNorm = (r.room_id || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const nameNorm = (r.name || '').toUpperCase().replace(/^ROOM\s+/i, '').replace(/[^A-Z0-9]/g, '');
+    return idNorm === searchNormalized || nameNorm === searchNormalized;
+  });
 
-  // Fetch all non-rejected bookings for this room on this date
+  if (!foundRoom) {
+    result.valid = false;
+    result.reasons.push(`Room "${room_number}" does not exist in the CSIS database. Please refer to the room list.`);
+    return result;
+  }
+
+  // Use the canonical room number for the rest of the checks
+  const canonicalRoom = foundRoom.room_id || foundRoom.name;
+
+  // ── 3. Live DB conflict check (hardcoded query + overlap math) ─────────────
+  
+  // Use canonicalRoom for database queries
   const { data: existing, error } = await supabase
     .from('bookings')
     .select('booking_id, room_number, start_date, start_time, end_time, status, owner_role')
-    .eq('room_number', room_number)
+    .or(`room_number.ilike.${canonicalRoom},room_number.ilike.${room_number}`)
     .eq('start_date', start_date)
     .neq('status', 'Rejected');
 

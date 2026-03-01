@@ -431,15 +431,20 @@ POLICIES:
 1. SEMESTER LIMIT: Only book between ${today} and ${semEndStr}. Reject dates outside this window.
 2. ROLE RULES: Students → Pending status (CSA must approve). Teachers → Approved instantly. Admin → Full override.
 3. CONFLICT RULE: NEVER book a room that has an overlapping approved or pending booking. The hardcoded check above is final.
-4. ROOM VALIDITY: ONLY book rooms explicitly listed in "AVAILABLE RESOURCES". If the user asks for a room not in that list, refuse and list the available ones.
+4. ROOM VALIDITY: You are STRICTLY FORBIDDEN from booking any room not explicitly listed below. If the user mentions "A-504", "Room 101", etc., and they are not in the list, you MUST say "I'm sorry, that room is not in the CSIS database" and list the actual available rooms.
+5. NO HALLUCINATIONS: Do not assume a room exists just because it sounds like a campus room. Check the "AVAILABLE RESOURCES" list below for the ONLY valid room IDs.
 
 OUTPUT FORMAT (strict JSON):
 {
-  "intent": "BOOK" | "CANCEL" | "INQUIRY" | "CONFLICT",
+  "intent": "BOOK" | "CANCEL" | "INQUIRY" | "CONFLICT" | "CLEAR",
   "bookings": [{ "room_number": "...", "start_date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM", "status": "..." }],
   "cancellations": [{ "room_number": "...", "date": "YYYY-MM-DD" }],
   "assistant_message": "Your friendly, clear reply to the user. For conflicts, explain exactly what's blocking and suggest alternatives."
-}`;
+}
+
+INTENT RULES:
+- Use "CLEAR" ONLY when the admin explicitly asks to clear/delete/remove ALL bookings at once.
+- For CLEAR intent, set bookings to [] and cancellations to [] and write a confirmation message in assistant_message.`;
 
     // ── STEP 4: Full AI response ─────────────────────────────────────────────
     // Format message history for Groq
@@ -516,6 +521,9 @@ OUTPUT FORMAT (strict JSON):
           continue;
         }
 
+        // SAFETY: Force status based on role, never trust the AI's suggested status for student requests
+        const forcedStatus = role === 'student' ? 'Pending' : (bk.status || 'Approved');
+        
         const genId = "BK-" + Math.random().toString(36).slice(2, 7).toUpperCase();
         const newBooking = {
           booking_id: genId,
@@ -523,7 +531,7 @@ OUTPUT FORMAT (strict JSON):
           start_date: bk.start_date,
           start_time: bk.start_time,
           end_time: bk.end_time,
-          status: bk.status || (role === "student" ? "Pending" : "Approved"),
+          status: forcedStatus,
           owner_role: role,
         };
 
@@ -571,6 +579,39 @@ OUTPUT FORMAT (strict JSON):
           });
         }
       }
+    }
+
+    // ── STEP 6b: CLEAR — delete all bookings (admin only) ───────────────────
+    if (parsedData.intent === "CLEAR") {
+      if (role !== "admin") {
+        parsedData.assistant_message = "⛔ Only admins can clear all bookings.";
+      } else {
+        const { data: allDeleted, error: clearError } = await supabase
+          .from("bookings")
+          .delete()
+          .neq("booking_id", "") // match all rows
+          .select();
+
+        if (clearError) {
+          console.error("❌ Error clearing bookings:", clearError);
+          parsedData.assistant_message = `⚠ Failed to clear bookings: ${clearError.message}`;
+        } else {
+          const count = allDeleted?.length ?? 0;
+          console.log(`🗑 CLEAR: Deleted ${count} bookings`);
+          parsedData.assistant_message = `✅ All bookings have been cleared successfully. ${count} record${count !== 1 ? "s" : ""} removed.`;
+          broadcastToClients("booking_change", {
+            eventType: "CLEAR",
+            count,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+    }
+
+    // ── Safety: strip any leaked raw JSON from assistant_message ───────────
+    const msg = parsedData.assistant_message || "";
+    if (msg.trim().startsWith("{") || msg.trim().startsWith("[")) {
+      parsedData.assistant_message = "I've processed your request. Please check the bookings panel for the latest status.";
     }
 
     return res.json(parsedData);
