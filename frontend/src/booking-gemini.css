@@ -504,6 +504,7 @@ body {
 
 .bk-card.complete { border-left: 3px solid var(--success); }
 .bk-card.incomplete { border-left: 3px solid var(--warning); }
+.bk-card.rejected { border-left: 3px solid var(--danger); }
 
 .bk-head {
   padding: 12px 14px;

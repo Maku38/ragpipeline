@@ -30,6 +30,50 @@ export default function BookingGemini({ userRole = "student" }) {
     }
   };
 
+  // Function to approve a booking (admin only)
+  const approveBooking = async (bookingId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/bookings/approve/${bookingId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminRole: role })
+      });
+
+      if (!res.ok) throw new Error("Failed to approve booking");
+      
+      const result = await res.json();
+      console.log("✅ Booking approved:", result);
+      
+      // Refresh bookings to show the updated status
+      await fetchBookings();
+    } catch (err) {
+      console.error("❌ Error approving booking:", err);
+      alert(`Error approving booking: ${err.message}`);
+    }
+  };
+
+  // Function to reject a booking (admin only)
+  const rejectBooking = async (bookingId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/bookings/reject/${bookingId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminRole: role })
+      });
+
+      if (!res.ok) throw new Error("Failed to reject booking");
+      
+      const result = await res.json();
+      console.log("✅ Booking rejected:", result);
+      
+      // Refresh bookings to show the updated status
+      await fetchBookings();
+    } catch (err) {
+      console.error("❌ Error rejecting booking:", err);
+      alert(`Error rejecting booking: ${err.message}`);
+    }
+  };
+
   // Fetch immediately on load
   useEffect(() => { fetchBookings(); }, []);
 
@@ -148,15 +192,66 @@ export default function BookingGemini({ userRole = "student" }) {
              <div className="empty">No active bookings.</div>
           ) : (
             bookings.map(bk => (
-              <div key={bk.booking_id} className={`bk-card ${bk.status === 'Approved' ? 'complete' : 'incomplete'}`}>
+              <div key={bk.booking_id} className={`bk-card ${bk.status === 'Approved' ? 'complete' : bk.status === 'Rejected' ? 'rejected' : 'incomplete'}`}>
                 <div className="bk-head">
                   <div><div className="bk-id">{bk.booking_id} ({bk.owner_role})</div><div className="bk-room">{bk.room_number || "—"}</div></div>
-                  <span className={`bk-badge badge-${bk.status === 'Approved' ? 'approved' : 'pending'}`}>{bk.status}</span>
+                  <span className={`bk-badge badge-${bk.status === 'Approved' ? 'approved' : bk.status === 'Rejected' ? 'rejected' : 'pending'}`}>{bk.status}</span>
                 </div>
                 <div className="bk-body">
                   <div className="field-lbl">Date</div><div className="field-val">{bk.start_date || "—"}</div>
                   <div className="field-lbl">Time</div><div className="field-val">{bk.start_time ? `${bk.start_time} - ${bk.end_time}` : "—"}</div>
                 </div>
+
+                {/* ADMIN: Show approve/reject buttons only for admin users viewing pending student bookings */}
+                {role === 'admin' && bk.owner_role === 'student' && bk.status === 'Pending' && (
+                  <div className="bk-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(91, 107, 192, 0.2)' }}>
+                    <button 
+                      onClick={() => approveBooking(bk.booking_id)}
+                      style={{
+                        flex: 1, padding: '8px 12px', fontSize: '12px', fontWeight: '600',
+                        border: 'none', borderRadius: '4px', cursor: 'pointer', transition: '0.2s',
+                        background: '#10b981', color: '#fff'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = '#059669'}
+                      onMouseLeave={(e) => e.target.style.background = '#10b981'}
+                    >
+                      ✓ Approve
+                    </button>
+                    <button 
+                      onClick={() => rejectBooking(bk.booking_id)}
+                      style={{
+                        flex: 1, padding: '8px 12px', fontSize: '12px', fontWeight: '600',
+                        border: 'none', borderRadius: '4px', cursor: 'pointer', transition: '0.2s',
+                        background: '#ef4444', color: '#fff'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = '#dc2626'}
+                      onMouseLeave={(e) => e.target.style.background = '#ef4444'}
+                    >
+                      ✕ Reject
+                    </button>
+                  </div>
+                )}
+
+                {/* STUDENT: Show approval notification message */}
+                {role === 'student' && bk.owner_role === 'student' && (
+                  <div className="bk-notification" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(91, 107, 192, 0.2)' }}>
+                    {bk.status === 'Approved' && (
+                      <div style={{ color: '#10b981', fontSize: '12px', fontWeight: '500' }}>
+                        ✓ Your booking has been approved!
+                      </div>
+                    )}
+                    {bk.status === 'Rejected' && (
+                      <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
+                        ✕ Your booking was rejected by the admin.
+                      </div>
+                    )}
+                    {bk.status === 'Pending' && (
+                      <div style={{ color: '#ffb547', fontSize: '12px', fontWeight: '500' }}>
+                        ⏳ Waiting for admin approval...
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))
           )}

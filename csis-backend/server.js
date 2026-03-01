@@ -113,6 +113,102 @@ app.get("/api/bookings", async (req, res) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/bookings/approve/:bookingId  — Admin approves a student booking
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/bookings/approve/:bookingId", async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { adminRole } = req.body; // Optional: verify admin is actually admin
+
+    // Check if booking exists
+    const { data: booking, error: fetchError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("booking_id", bookingId)
+      .single();
+
+    if (fetchError || !booking) {
+      console.error("❌ Booking not found:", bookingId);
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // Update status to Approved
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: "Approved" })
+      .eq("booking_id", bookingId);
+
+    if (updateError) {
+      console.error("❌ Error approving booking:", updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    console.log(`✅ Booking ${bookingId} approved by admin`);
+
+    // Broadcast the update to all clients
+    broadcastToClients("booking_change", {
+      eventType: "UPDATE",
+      bookingId: bookingId,
+      newStatus: "Approved",
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({ success: true, message: "Booking approved", bookingId });
+  } catch (error) {
+    console.error("❌ Error in /api/bookings/approve:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/bookings/reject/:bookingId  — Admin rejects a student booking
+// ─────────────────────────────────────────────────────────────────────────────
+app.post("/api/bookings/reject/:bookingId", async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const { adminRole } = req.body; // Optional: verify admin is actually admin
+
+    // Check if booking exists
+    const { data: booking, error: fetchError } = await supabase
+      .from("bookings")
+      .select("*")
+      .eq("booking_id", bookingId)
+      .single();
+
+    if (fetchError || !booking) {
+      console.error("❌ Booking not found:", bookingId);
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    // Update status to Rejected
+    const { error: updateError } = await supabase
+      .from("bookings")
+      .update({ status: "Rejected" })
+      .eq("booking_id", bookingId);
+
+    if (updateError) {
+      console.error("❌ Error rejecting booking:", updateError);
+      return res.status(500).json({ error: updateError.message });
+    }
+
+    console.log(`✅ Booking ${bookingId} rejected by admin`);
+
+    // Broadcast the update to all clients
+    broadcastToClients("booking_change", {
+      eventType: "UPDATE",
+      bookingId: bookingId,
+      newStatus: "Rejected",
+      timestamp: new Date().toISOString(),
+    });
+
+    res.json({ success: true, message: "Booking rejected", bookingId });
+  } catch (error) {
+    console.error("❌ Error in /api/bookings/reject:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/bookings/stream  — SSE endpoint for real-time updates
 // ─────────────────────────────────────────────────────────────────────────────
 app.get("/api/bookings/stream", (req, res) => {
