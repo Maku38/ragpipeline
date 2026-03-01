@@ -192,10 +192,10 @@ export default function BookingGemini({ userRole = "student" }) {
              <div className="empty">No active bookings.</div>
           ) : (
             bookings.map(bk => (
-              <div key={bk.booking_id} className={`bk-card ${bk.status === 'Approved' ? 'complete' : bk.status === 'Rejected' ? 'rejected' : 'incomplete'}`}>
+              <div key={bk.booking_id} className={`bk-card ${(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') ? 'complete' : (bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') ? 'rejected' : 'incomplete'}`}>
                 <div className="bk-head">
                   <div><div className="bk-id">{bk.booking_id} ({bk.owner_role})</div><div className="bk-room">{bk.room_number || "—"}</div></div>
-                  <span className={`bk-badge badge-${bk.status === 'Approved' ? 'approved' : bk.status === 'Rejected' ? 'rejected' : 'pending'}`}>{bk.status}</span>
+                  <span className={`bk-badge badge-${(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') ? 'approved' : (bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') ? 'rejected' : 'pending'}`}>{bk.status}</span>
                 </div>
                 <div className="bk-body">
                   <div className="field-lbl">Date</div><div className="field-val">{bk.start_date || "—"}</div>
@@ -203,7 +203,7 @@ export default function BookingGemini({ userRole = "student" }) {
                 </div>
 
                 {/* ADMIN: Show approve/reject buttons only for admin users viewing pending student bookings */}
-                {role === 'admin' && bk.owner_role === 'student' && bk.status === 'Pending' && (
+                {role === 'admin' && bk.owner_role === 'student' && (bk.status === 'Pending' || bk.status?.toUpperCase() === 'PENDING') && (
                   <div className="bk-actions" style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(91, 107, 192, 0.2)' }}>
                     <button 
                       onClick={() => approveBooking(bk.booking_id)}
@@ -235,17 +235,17 @@ export default function BookingGemini({ userRole = "student" }) {
                 {/* STUDENT: Show approval notification message */}
                 {role === 'student' && bk.owner_role === 'student' && (
                   <div className="bk-notification" style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(91, 107, 192, 0.2)' }}>
-                    {bk.status === 'Approved' && (
+                    {(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') && (
                       <div style={{ color: '#10b981', fontSize: '12px', fontWeight: '500' }}>
                         ✓ Your booking has been approved!
                       </div>
                     )}
-                    {bk.status === 'Rejected' && (
+                    {(bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') && (
                       <div style={{ color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
                         ✕ Your booking was rejected by the admin.
                       </div>
                     )}
-                    {bk.status === 'Pending' && (
+                    {(bk.status === 'Pending' || bk.status?.toUpperCase() === 'PENDING') && (
                       <div style={{ color: '#ffb547', fontSize: '12px', fontWeight: '500' }}>
                         ⏳ Waiting for admin approval...
                       </div>

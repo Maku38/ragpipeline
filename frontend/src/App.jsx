@@ -180,8 +180,8 @@ export default function App() {
   // ─ NOW we can do conditional returns (after all hooks) ─
   if (!isLoggedIn) return <FaceLogin onLoginSuccess={handleLoginSuccess} />;
 
-  const approvedCount = bookings.filter(b => b.status === 'Approved').length;
-  const pendingCount  = bookings.filter(b => b.status !== 'Approved' && b.status !== 'Rejected').length;
+  const approvedCount = bookings.filter(b => b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED').length;
+  const pendingCount  = bookings.filter(b => (b.status !== 'Approved' && b.status !== 'Rejected' && b.status?.toUpperCase() !== 'APPROVED' && b.status?.toUpperCase() !== 'REJECTED')).length;
 
   // Rooms to show in calendar — pull unique rooms from schedule or use defaults
   const allRooms = availableRooms;
@@ -275,13 +275,13 @@ export default function App() {
                 <div className="empty">No active bookings.</div>
               ) : (
                 bookings.map(bk => (
-                  <div key={bk.booking_id} className={`bk-card ${bk.status === 'Approved' ? 'complete' : bk.status === 'Rejected' ? 'rejected' : 'incomplete'}`}>
+                  <div key={bk.booking_id} className={`bk-card ${(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') ? 'complete' : (bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') ? 'rejected' : 'incomplete'}`}>
                     <div className="bk-head">
                       <div className="bk-meta">
                         <div className="bk-id">{bk.booking_id} · {bk.owner_role}</div>
                         <div className="bk-room">{bk.room_number || '—'}</div>
                       </div>
-                      <span className={`bk-badge badge-${bk.status === 'Approved' ? 'approved' : bk.status === 'Rejected' ? 'rejected' : 'pending'}`}>
+                      <span className={`bk-badge badge-${(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') ? 'approved' : (bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') ? 'rejected' : 'pending'}`}>
                         {bk.status}
                       </span>
                     </div>
@@ -297,7 +297,7 @@ export default function App() {
                     </div>
 
                     {/* ADMIN: Show approve/reject buttons only for admin users viewing pending student bookings */}
-                    {role === 'admin' && bk.owner_role === 'student' && bk.status === 'Pending' && (
+                    {role === 'admin' && bk.owner_role === 'student' && (bk.status === 'Pending' || bk.status?.toUpperCase() === 'PENDING') && (
                       <div style={{ display: 'flex', gap: '8px', padding: '12px 14px', borderTop: '1px solid var(--border)' }}>
                         <button 
                           onClick={() => approveBooking(bk.booking_id)}
@@ -329,13 +329,13 @@ export default function App() {
                     {/* STUDENT: Show approval notification message */}
                     {role === 'student' && bk.owner_role === 'student' && (
                       <div style={{ padding: '12px 14px', borderTop: '1px solid var(--border)', fontSize: '12px', fontWeight: '500' }}>
-                        {bk.status === 'Approved' && (
+                        {(bk.status === 'Approved' || bk.status?.toUpperCase() === 'APPROVED') && (
                           <div style={{ color: '#10b981' }}>✓ Your booking has been approved!</div>
                         )}
-                        {bk.status === 'Rejected' && (
+                        {(bk.status === 'Rejected' || bk.status?.toUpperCase() === 'REJECTED') && (
                           <div style={{ color: '#ef4444' }}>✕ Your booking was rejected by the admin.</div>
                         )}
-                        {bk.status === 'Pending' && (
+                        {(bk.status === 'Pending' || bk.status?.toUpperCase() === 'PENDING') && (
                           <div style={{ color: '#ffb547' }}>⏳ Waiting for admin approval...</div>
                         )}
                       </div>
@@ -370,8 +370,8 @@ export default function App() {
                 const key = formatDate(date);
                 const dayBookings = schedule[key] || [];
                 if (dayBookings.length === 0) return null;
-                const hasApproved = dayBookings.some(b => b.status === 'Approved');
-                const hasPending  = dayBookings.some(b => b.status === 'Pending');
+                const hasApproved = dayBookings.some(b => b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED');
+                const hasPending  = dayBookings.some(b => b.status === 'Pending' || b.status?.toUpperCase() === 'PENDING');
                 return (
                   <div style={{ display: 'flex', justifyContent: 'center', gap: '2px', marginTop: '2px' }}>
                     {hasApproved && <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#00e5a0' }} />}
@@ -406,8 +406,8 @@ export default function App() {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     {[
                       { n: todayBks.length,                                              label: 'Bookings',  color: 'var(--text-main)' },
-                      { n: todayBks.filter(b => b.status === 'Approved').length,         label: 'Approved',  color: '#00e5a0' },
-                      { n: todayBks.filter(b => b.status === 'Pending').length,          label: 'Pending',   color: '#ffb547' },
+                      { n: todayBks.filter(b => b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED').length,         label: 'Approved',  color: '#00e5a0' },
+                      { n: todayBks.filter(b => b.status === 'Pending' || b.status?.toUpperCase() === 'PENDING').length,          label: 'Pending',   color: '#ffb547' },
                       { n: allRooms.length - new Set(todayBks.map(b => b.room_number)).size, label: 'Free rooms', color: 'var(--accent2)' },
                     ].map(({ n, label, color }) => (
                       <div key={label} style={{ textAlign: 'center', padding: '8px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px' }}>
@@ -479,8 +479,8 @@ export default function App() {
                               <span style={{
                                 fontSize: '8px', fontWeight: '700', padding: '2px 6px',
                                 borderRadius: '3px', letterSpacing: '0.08em',
-                                background: b.status === 'Approved' ? 'rgba(0,229,160,0.15)' : 'rgba(255,181,71,0.15)',
-                                color: b.status === 'Approved' ? '#00e5a0' : '#ffb547',
+                                background: (b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED') ? 'rgba(0,229,160,0.15)' : 'rgba(255,181,71,0.15)',
+                                color: (b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED') ? '#00e5a0' : '#ffb547',
                               }}>
                                 {b.status?.toUpperCase()}
                               </span>
@@ -506,7 +506,7 @@ export default function App() {
                         padding: '12px 16px',
                         background: 'var(--surface2)',
                         border: '1px solid var(--border)',
-                        borderLeft: `3px solid ${b.status === 'Approved' ? '#00e5a0' : '#ffb547'}`,
+                        borderLeft: `3px solid ${(b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED') ? '#00e5a0' : '#ffb547'}`,
                         borderRadius: 'var(--radius-sm)',
                         animation: 'cardIn 0.3s ease',
                       }}>
@@ -522,8 +522,8 @@ export default function App() {
                         <span style={{
                           fontSize: '9px', fontWeight: '700', padding: '3px 8px', borderRadius: '3px',
                           letterSpacing: '0.08em', textTransform: 'uppercase',
-                          background: b.status === 'Approved' ? 'rgba(0,229,160,0.1)' : 'rgba(255,181,71,0.1)',
-                          color: b.status === 'Approved' ? '#00e5a0' : '#ffb547',
+                          background: (b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED') ? 'rgba(0,229,160,0.1)' : 'rgba(255,181,71,0.1)',
+                          color: (b.status === 'Approved' || b.status?.toUpperCase() === 'APPROVED') ? '#00e5a0' : '#ffb547',
                         }}>
                           {b.status}
                         </span>
