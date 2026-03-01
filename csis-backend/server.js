@@ -80,40 +80,20 @@ app.get("/api/rooms", async (req, res) => {
 // GET /api/schedule  — grouped by date for the calendar view
 // ─────────────────────────────────────────────────────────────────────────────
 app.get("/api/schedule", async (req, res) => {
-  try {
-    // 1. Fetch valid room names first
-    const { data: rooms, error: roomsError } = await supabase
-      .from("rooms")
-      .select("name");
-    
-    if (roomsError) throw roomsError;
-    const validRoomNames = new Set((rooms || []).map(r => r.name.trim().toUpperCase()));
+  const { data: bookings, error } = await supabase
+    .from("bookings")
+    .select("room_number, start_date, start_time, end_time, status")
+    .neq("status", "Rejected");
 
-    // 2. Fetch all non-rejected bookings
-    const { data: bookings, error: bookingsError } = await supabase
-      .from("bookings")
-      .select("room_number, start_date, start_time, end_time, status")
-      .neq("status", "Rejected");
+  if (error) return res.status(500).json({ error: error.message });
 
-    if (bookingsError) throw bookingsError;
+  const scheduleMap = {};
+  bookings.forEach((b) => {
+    if (!scheduleMap[b.start_date]) scheduleMap[b.start_date] = [];
+    scheduleMap[b.start_date].push(b);
+  });
 
-    // 3. Filter schedule to ONLY show bookings for rooms that actually exist!
-    // This prevents "ghost" bookings (like A-504) from showing in the timeline.
-    const filteredBookings = (bookings || []).filter(b => 
-      validRoomNames.has((b.room_number || "").trim().toUpperCase())
-    );
-
-    const scheduleMap = {};
-    filteredBookings.forEach((b) => {
-      if (!scheduleMap[b.start_date]) scheduleMap[b.start_date] = [];
-      scheduleMap[b.start_date].push(b);
-    });
-
-    res.json(scheduleMap);
-  } catch (err) {
-    console.error("❌ Schedule fetch error:", err);
-    res.status(500).json({ error: err.message });
-  }
+  res.json(scheduleMap);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
